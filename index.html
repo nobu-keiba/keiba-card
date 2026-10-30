@@ -18,6 +18,9 @@ h1{font-size:22px;margin:0 0 16px}
 #status.off{color:var(--warn)}
 a.go{display:inline-block;background:var(--acc);color:var(--acc-ink);text-decoration:none;font-weight:700;border-radius:10px;padding:10px 18px}
 a.go[hidden]{display:none}
+#go2{margin:8px 0 0 8px}
+#forget{font:inherit;font-size:13px;margin-left:6px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.hint[hidden]{display:none}
 .hint{color:var(--mut);font-size:14px;margin:16px 0 0}
 .when{color:var(--mut);font-size:13px;margin:8px 0 0;font-variant-numeric:tabular-nums}
 </style>
@@ -28,7 +31,9 @@ a.go[hidden]{display:none}
   <div class="box">
     <p id="status" role="status">確かめています…</p>
     <a class="go" id="go" hidden>出馬表を開く</a>
+    <a class="go" id="go2" hidden>試しの出馬表(パドック)</a>
     <p class="when" id="when"></p>
+    <p class="hint" id="mine" hidden>この端末は合い鍵を覚えています(本人用)。<button type="button" id="forget">この端末の合い鍵を消す</button></p>
     <p class="hint">開くと、メールアドレスの確認があります。登録してもらったアドレスを入れて、メールに届いた番号を入れてください(開催日ごとに1回)。</p>
     <p class="hint">このページをブックマークしておけば、毎回ここから開けます。</p>
   </div>
@@ -36,14 +41,30 @@ a.go[hidden]{display:none}
 <script>
 (function () {
   var st = document.getElementById("status"), go = document.getElementById("go"), when = document.getElementById("when");
+  var go2 = document.getElementById("go2"), mine = document.getElementById("mine"), k = null, got = false;
   function off(t) { st.textContent = t; st.className = "off"; }
+  // 本人のスマホだけ: パソコンの QR コード(…/#k=合い鍵)から開くと、この端末に合い鍵を覚える(合い鍵はこのページのコードには無い)
+  try {
+    var m = location.hash.match(/k=([A-Za-z0-9_-]+)/);
+    if (m) { localStorage.setItem("pdk", m[1]); got = true; history.replaceState(null, "", location.pathname + location.search); }
+    k = localStorage.getItem("pdk");
+  } catch (e) {}
+  if (k) {
+    mine.hidden = false;
+    document.getElementById("forget").addEventListener("click", function () { try { localStorage.removeItem("pdk"); } catch (e) {} location.reload(); });
+  }
   fetch("link.json?t=" + Date.now(), {cache: "no-store"}).then(function (r) { return r.json(); }).then(function (d) {
     if (d.updated) when.textContent = "最終更新 " + d.updated;
     // 丸1日以上書き換わっていなければ、配信が止まったまま(パソコンが切れたなど)とみなす
     var age = d.updated ? (Date.now() - new Date(d.updated.replace(" ", "T") + ":00+09:00").getTime()) / 36e5 : 99;
-    if (!d.url || age > 24) { off(d.url ? "今は配信していません。開催日の朝にまた開いてください。" : (d.note || "今は配信していません。")); return; }
-    st.textContent = "その日の出馬表へ移動しています…";
+    if (!d.url || age > 24) { off((got ? "この端末に合い鍵を覚えました。" : "") + (d.url ? "今は配信していません。開催日の朝にまた開いてください。" : (d.note || "今は配信していません。"))); return; }
     go.href = d.url; go.hidden = false;
+    if (k) {  // 本人は、今の出馬表と試しの出馬表を選ぶ(自動では移らない)
+      st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "開く出馬表を選んでください。";
+      go2.href = new URL(d.url).origin + "/open#k=" + k; go2.hidden = false;
+      return;
+    }
+    st.textContent = "その日の出馬表へ移動しています…";
     location.replace(d.url);
   }).catch(function () { off("読み込めませんでした。少し待ってから、もう一度開いてください。"); });
 })();
