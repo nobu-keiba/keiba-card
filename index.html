@@ -65,7 +65,8 @@ a.go[hidden]{display:none}
       mail.hidden = true;
       if (!k) { off("今日の当日版は本人だけが開けます。この端末は合い鍵を覚えていません(家のパソコンに出す QR コードを、この端末のカメラで読むと覚えます)。"); return; }
       go3.href = new URL(d.url).origin + "/open?to=card#k=" + k; go3.hidden = false;
-      if (stay) { st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "当日版を開けます。"; return; }
+      if (got) { st.textContent = "この端末に合い鍵を覚えました。このページ(入口)をブックマークしてから、下のボタンで当日版を開いてください。次からは入口を開くだけで当日版へ移ります。"; return; }
+      if (stay) { st.textContent = "当日版を開けます。"; return; }
       st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "当日版へ移動しています…";
       location.replace(go3.href);
       return;
