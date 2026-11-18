@@ -32,9 +32,10 @@ a.go[hidden]{display:none}
     <p id="status" role="status">確かめています…</p>
     <a class="go" id="go" hidden>出馬表を開く</a>
     <a class="go" id="go2" hidden>試しの出馬表(パドック)</a>
+    <a class="go" id="go3" hidden>当日版を開く</a>
     <p class="when" id="when"></p>
     <p class="hint" id="mine" hidden>この端末は合い鍵を覚えています(本人用)。<button type="button" id="forget">この端末の合い鍵を消す</button></p>
-    <p class="hint">開くと、メールアドレスの確認があります。登録してもらったアドレスを入れて、メールに届いた番号を入れてください(開催日ごとに1回)。</p>
+    <p class="hint" id="mail" hidden>開くと、メールアドレスの確認があります。登録してもらったアドレスを入れて、メールに届いた番号を入れてください(開催日ごとに1回)。</p>
     <p class="hint">このページをブックマークしておけば、毎回ここから開けます。</p>
   </div>
 </main>
@@ -42,6 +43,8 @@ a.go[hidden]{display:none}
 (function () {
   var st = document.getElementById("status"), go = document.getElementById("go"), when = document.getElementById("when");
   var go2 = document.getElementById("go2"), mine = document.getElementById("mine"), k = null, got = false;
+  var go3 = document.getElementById("go3"), mail = document.getElementById("mail");
+  var stay = /(^|[?&])stay(=|&|$)/.test(location.search.slice(1));  // ?stay で開くと当日版へ自動では移らない(合い鍵を消したいとき)
   function off(t) { st.textContent = t; st.className = "off"; }
   // 本人のスマホだけ: パソコンの QR コード(…/#k=合い鍵)から開くと、この端末に合い鍵を覚える(合い鍵はこのページのコードには無い)
   try {
@@ -58,7 +61,16 @@ a.go[hidden]{display:none}
     // 丸1日以上書き換わっていなければ、配信が止まったまま(パソコンが切れたなど)とみなす
     var age = d.updated ? (Date.now() - new Date(d.updated.replace(" ", "T") + ":00+09:00").getTime()) / 36e5 : 99;
     if (!d.url || age > 24) { off((got ? "この端末に合い鍵を覚えました。" : "") + (d.url ? "今は配信していません。開催日の朝にまた開いてください。" : (d.note || "今は配信していません。"))); return; }
-    go.href = d.url; go.hidden = false;
+    if (d.self) {  // 2026-11-18 本人だけの配信(旅行先のスマホ用): 合い鍵を覚えた端末だけを当日版へ。メールの確認は無い
+      mail.hidden = true;
+      if (!k) { off("今日の当日版は本人だけが開けます。この端末は合い鍵を覚えていません(家のパソコンに出す QR コードを、この端末のカメラで読むと覚えます)。"); return; }
+      go3.href = new URL(d.url).origin + "/open?to=card#k=" + k; go3.hidden = false;
+      if (stay) { st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "当日版を開けます。"; return; }
+      st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "当日版へ移動しています…";
+      location.replace(go3.href);
+      return;
+    }
+    go.href = d.url; go.hidden = false; mail.hidden = false;  // メールの確認があるのは、知り合いにも見せる配信(--share)のときだけ
     if (k) {  // 本人は、今の出馬表と試しの出馬表を選ぶ(自動では移らない)
       st.textContent = (got ? "この端末に合い鍵を覚えました。" : "") + "開く出馬表を選んでください。";
       go2.href = new URL(d.url).origin + "/open#k=" + k; go2.hidden = false;
